@@ -1,0 +1,58 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // --- Collection Rules ---
+
+    // Rules for the 'admins' collection
+    match /admins/{userId} {
+      // Only admins can read the list of other admins (for potential future use)
+      allow read: if isAdmin();
+      // Writing to the admins collection should only be done from the Firebase Console.
+      allow write: if false;
+    }
+
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // Anyone can read public user profiles
+      allow read: if true;
+      // Users can update their own profile. Admins can create/update any profile.
+      allow write: if isOwner(userId) || isAdmin();
+
+      // Rules for the 'reviews' subcollection
+      match /reviews/{reviewId} {
+        // Anyone can read reviews
+        allow read: if true;
+        // Only authenticated users can create reviews
+        allow create: if isSignedIn();
+        // Only the author of a review can update or delete it
+        allow update, delete: if isOwner(resource.data.authorId);
+      }
+    }
+
+    // Rules for the 'jobs' collection
+    match /jobs/{jobId} {
+      // Anyone can read job listings
+      allow read: if true;
+      // Authenticated users and admins can create job listings
+      allow create: if isSignedIn();
+      // The job creator or an admin can update or delete it
+      allow update, delete: if isOwner(resource.data.publisherId) || isAdmin();
+    }
+  }
+}
