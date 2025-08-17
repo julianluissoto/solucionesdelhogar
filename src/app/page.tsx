@@ -1,173 +1,238 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Header from "@/components/header";
+import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/contexts/auth-context";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Search, CheckCircle } from "lucide-react";
+import Header from "@/components/header";
+import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, writeBatch, serverTimestamp, collection } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
+import { collection, getDocs, query, where, limit, orderBy } from "firebase/firestore";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import StarRating from "@/components/star-rating";
+import { Badge } from "@/components/ui/badge";
+import Logo from "@/components/logo";
 import { Loader2 } from "lucide-react";
 
-// --- Datos de Ejemplo ---
+interface FeaturedReview {
+    id: string;
+    workerId: string;
+    workerName: string;
+    workerProfession: string;
+    workerPhotoURL?: string;
+    rating: number;
+    comment: string;
+}
 
-const sampleJobs = [
-    { title: "Pintar pared exterior de casa", category: "Hogar", location: "Palermo, Buenos Aires", provincia: "Buenos Aires", description: "Necesito pintar la fachada de mi casa, son aproximadamente 80 metros cuadrados. La pintura la proveo yo.", budget: 75000 },
-    { title: "Instalación de 5 tomas de corriente", category: "Hogar", location: "Caballito, Buenos Aires", provincia: "Buenos Aires", description: "Agregar 5 tomas de corriente en el living. El cableado ya está pasado.", budget: 25000 },
-    { title: "Reparar reja de balcón oxidada", category: "Construcción", location: "Centro, Córdoba", provincia: "Córdoba", description: "La reja del balcón tiene partes oxidadas que necesitan ser lijadas, tratadas y pintadas.", budget: 40000 },
-    { title: "Diseño de logo para emprendimiento", category: "Diseño Gráfico", location: "Nueva Córdoba, Córdoba", provincia: "Córdoba", description: "Busco un diseñador para crear un logo moderno para mi marca de ropa.", budget: 50000 },
-    { title: "Mantenimiento de jardín pequeño", category: "Hogar", location: "Centro, Rosario", provincia: "Santa Fe", description: "Cortar el césped y podar algunos arbustos en un jardín de 5x5 metros.", budget: 15000 },
-];
 
-
-export default function SeedDataPage() {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
+export default function HomePage() {
+  const [featuredReviews, setFeaturedReviews] = useState<FeaturedReview[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
-        if (user) {
-            const adminDocRef = doc(db, "admins", user.uid);
-            const adminDocSnap = await getDoc(adminDocRef);
-            setIsAdmin(adminDocSnap.exists());
+    const fetchFeaturedReviews = async () => {
+        setLoading(true);
+        const workersRef = collection(db, "users");
+        // We get workers who have reviews. A simple way is to get workers and then their reviews.
+        // A more scalable way would be to have a "hasReviews" flag on the worker.
+        // For now, let's get some workers and then get their best review.
+        const qWorkers = query(workersRef, where("role", "==", "trabajador"), limit(10));
+        const workerSnap = await getDocs(qWorkers);
+        
+        const reviewsData: FeaturedReview[] = [];
+
+        for (const workerDoc of workerSnap.docs) {
+            const worker = workerDoc.data();
+            const reviewsRef = collection(db, "users", workerDoc.id, "reviews");
+            const qReviews = query(reviewsRef, orderBy("rating", "desc"), limit(1));
+            const reviewSnap = await getDocs(qReviews);
+
+            if (!reviewSnap.empty) {
+                const reviewDoc = reviewSnap.docs[0];
+                const review = reviewDoc.data();
+                reviewsData.push({
+                    id: reviewDoc.id,
+                    workerId: workerDoc.id,
+                    workerName: `${worker.firstName} ${worker.lastName}`,
+                    workerProfession: worker.category || 'Especialista',
+                    workerPhotoURL: worker.photoURL,
+                    rating: review.rating,
+                    comment: review.comment,
+                });
+            }
         }
-        setCheckingAdmin(false);
+        
+        setFeaturedReviews(reviewsData.slice(0, 5)); // Limit to 5 for the carousel
+        setLoading(false);
     };
 
-    if (!authLoading) {
-        checkAdminStatus();
-    }
-  }, [user, authLoading]);
-
-
-  if (!authLoading && !user) {
-    router.push('/login');
-  }
-
-  const handleSeed = async () => {
-    if (!user || !isAdmin) {
-      toast({
-        variant: "destructive",
-        title: "No Autorizado",
-        description: "Solo los administradores pueden ejecutar esta acción.",
-      });
-      return;
-    }
-    setIsLoading(true);
-    
-    try {
-        const batch = writeBatch(db);
-
-        // NOTE: Specialist data is now managed through the user profile page
-        // No longer seeding specialists here to ensure specialists are real, registered users.
-
-        // Add jobs
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        const publisherName = userDoc.exists() ? `${userDoc.data().firstName} ${userDoc.data().lastName}` : "Admin";
-        const publisherPhotoURL = userDoc.exists() ? userDoc.data().photoURL : undefined;
-
-        sampleJobs.forEach(job => {
-            const jobRef = doc(collection(db, "jobs")); // Create a new doc with a random ID
-            const jobData: any = {
-                ...job,
-                publisherId: user.uid,
-                publisherName: publisherName,
-                createdAt: serverTimestamp(),
-            };
-
-            if (publisherPhotoURL) {
-                jobData.publisherPhotoURL = publisherPhotoURL;
-            }
-
-            batch.set(jobRef, jobData);
-        });
-
-        await batch.commit();
-
-        toast({ 
-            title: "¡Éxito!", 
-            description: `Se cargaron ${sampleJobs.length} trabajos. Los especialistas se gestionan desde los perfiles de usuario.`,
-            variant: "default",
-            duration: 5000 
-        });
-
-    } catch (error) {
-      console.error("Error al cargar los datos:", error);
-      toast({
-        variant: "destructive",
-        title: "Error al Cargar Datos",
-        description: "No se pudieron cargar los datos de ejemplo. Revisa la consola para más detalles.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (authLoading || checkingAdmin) {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <Header/>
-            <main className="flex-grow flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </main>
-        </div>
-    );
-  }
-
-  if (!isAdmin) {
-     return (
-        <div className="flex flex-col min-h-screen">
-            <Header/>
-            <main className="flex-grow flex items-center justify-center">
-                <Card className="w-full max-w-lg mx-auto">
-                    <CardHeader>
-                        <CardTitle>Acceso Denegado</CardTitle>
-                        <CardDescription>
-                         Esta página es solo para administradores.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            </main>
-        </div>
-    );
-  }
+    fetchFeaturedReviews();
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow p-4 md:p-8 flex items-center justify-center">
-        <Card className="w-full max-w-lg mx-auto">
-          <CardHeader>
-            <CardTitle>Cargar Datos de Ejemplo (Admin)</CardTitle>
-            <CardDescription>
-              Este botón cargará los trabajos de ejemplo en Firestore.
-              Los especialistas ahora se gestionan directamente desde sus perfiles de usuario después de registrarse.
-              Esta acción solo debe ser ejecutada por un administrador.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleSeed} className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="animate-spin mr-2" /> Cargando Datos...
-                </>
-              ) : (
-                "Cargar Trabajos de Ejemplo"
-              )}
-            </Button>
-            <p className="text-xs text-muted-foreground mt-4 text-center">
-                Una vez que los datos estén cargados, puedes eliminar la carpeta /admin de tu proyecto.
-            </p>
-          </CardContent>
-        </Card>
+      <main className="flex-grow">
+        <section className="w-full py-12 md:py-24 lg:py-32">
+          <div className="px-4 md:px-6">
+            <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
+              <div className="flex flex-col justify-center space-y-4">
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
+                    Encuentra Ayuda, Ofrece tu Talento. Simple.
+                  </h1>
+                  <p className="max-w-[600px] text-muted-foreground md:text-xl">
+                    SolucionSimple conecta a personas que necesitan ayuda con tareas y proyectos con aquellos que tienen las habilidades para hacerlo. Publica un trabajo y encuentra la persona adecuada.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 min-[400px]:flex-row">
+                  <Button asChild size="lg">
+                    <Link href="/trabajos/nuevo">Crear un Trabajo</Link>
+                  </Button>
+                  <Button asChild size="lg" variant="secondary">
+                    <Link href="/trabajos">Ver Trabajos</Link>
+                  </Button>
+                </div>
+              </div>
+              <Image
+                src="https://res.cloudinary.com/julian-soto/image/upload/v1754075721/arte-nativo-web/unnamed_1_q9ubpx.png"
+                width="600"
+                height="400"
+                alt="Ilustración de personas trabajando juntas"
+                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+          <div className="px-4 md:px-6">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center">
+              <div className="space-y-2">
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">
+                  Cómo Funciona
+                </h2>
+                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                  Un proceso simple y directo para resolver tus necesidades.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-stretch gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:max-w-none mt-12">
+              <Card className="flex flex-col">
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <div className="bg-primary/10 p-3 rounded-full">
+                    <Logo className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle>1. Publica un Trabajo</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  Describe lo que necesitas, establece un presupuesto y publica tu trabajo para que la comunidad lo vea.
+                </CardContent>
+              </Card>
+              <Card className="flex flex-col">
+                <CardHeader className="flex flex-row items-center gap-4">
+                  <div className="bg-primary/10 p-3 rounded-full">
+                    <Search className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle>2. Encuentra gente capacitada</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  Personas con las habilidades adecuadas exploran los trabajos disponibles y se ponen en contacto para ofrecer sus servicios.
+                </CardContent>
+              </Card>
+              <Card className="flex flex-col">
+                <CardHeader className="flex flex-row items-center gap-4">
+                   <div className="bg-primary/10 p-3 rounded-full">
+                    <CheckCircle className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle>3. Soluciónalo</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  Eliges a la persona adecuada, se realiza el trabajo y tu problema queda resuelto. Así de simple.
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section className="w-full py-12 md:py-24 lg:py-32">
+            <div className="px-4 md:px-6">
+                <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="space-y-2">
+                        <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Lo que dicen nuestros clientes</h2>
+                        <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                            Historias reales de personas que encontraron la solución perfecta en nuestra comunidad.
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-12">
+                    {loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="text-lg">Cargando testimonios...</p>
+                        </div>
+                    ) : featuredReviews.length > 0 ? (
+                        <Carousel
+                            opts={{
+                                align: "start",
+                                loop: true,
+                            }}
+                            className="w-full max-w-4xl mx-auto"
+                        >
+                            <CarouselContent>
+                                {featuredReviews.map((review) => (
+                                <CarouselItem key={review.id} className="md:basis-1/2 lg:basis-1/3">
+                                    <div className="p-1 h-full">
+                                        <Card className="flex flex-col h-full">
+                                            <CardHeader className="flex-grow">
+                                                <div className="flex items-center gap-4">
+                                                    <Avatar>
+                                                        <AvatarImage src={review.workerPhotoURL} alt={review.workerName}/>
+                                                        <AvatarFallback>{review.workerName.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-semibold">{review.workerName}</p>
+                                                        <StarRating rating={review.rating} variant="display" />
+                                                    </div>
+                                                </div>
+                                                 <div className="mt-2">
+                                                    <Badge variant="secondary">{review.workerProfession}</Badge>
+                                                 </div>
+                                            </CardHeader>
+                                            <CardContent className="flex-grow">
+                                                <p className="text-sm text-muted-foreground italic">&quot;{review.comment}&quot;</p>
+                                            </CardContent>
+                                            <CardFooter>
+                                                <Button variant="outline" size="sm" asChild>
+                                                    <Link href={`/trabajadores/${review.workerId}`}>Ver Perfil</Link>
+                                                </Button>
+                                            </CardFooter>
+                                        </Card>
+                                    </div>
+                                </CarouselItem>
+                                ))}
+                            </CarouselContent>
+                            <CarouselPrevious />
+                            <CarouselNext />
+                        </Carousel>
+                    ) : (
+                        <p className="text-center text-muted-foreground">Aún no hay testimonios disponibles.</p>
+                    )}
+                </div>
+            </div>
+        </section>
+
       </main>
+      <footer className="flex items-center justify-center py-6 border-t">
+        <div className="px-4 md:px-6 flex justify-center">
+            <p className="text-sm text-muted-foreground">
+              © 2024 SolucionSimple. Todos los derechos reservados.
+            </p>
+        </div>
+      </footer>
     </div>
   );
 }
