@@ -16,6 +16,7 @@ import StarRating from "@/components/star-rating";
 import { Badge } from "@/components/ui/badge";
 import Logo from "@/components/logo";
 import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface FeaturedReview {
     id: string;
@@ -36,9 +37,7 @@ export default function HomePage() {
     const fetchFeaturedReviews = async () => {
         setLoading(true);
         const workersRef = collection(db, "users");
-        // We get workers who have reviews. A simple way is to get workers and then their reviews.
-        // A more scalable way would be to have a "hasReviews" flag on the worker.
-        // For now, let's get some workers and then get their best review.
+        
         const qWorkers = query(workersRef, where("role", "==", "trabajador"), limit(10));
         const workerSnap = await getDocs(qWorkers);
         
@@ -58,7 +57,7 @@ export default function HomePage() {
                     workerId: workerDoc.id,
                     workerName: `${worker.firstName} ${worker.lastName}`,
                     workerProfession: worker.category || 'Trabajador',
-                    workerPhotoURL: worker.photoURL,
+                    workerPhotoURL: review.workerPhotoURL || undefined,
                     rating: review.rating,
                     comment: review.comment,
                 });
@@ -71,6 +70,24 @@ export default function HomePage() {
 
     fetchFeaturedReviews();
   }, []);
+
+  const sectionVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+  };
+  
+  const cardVariants = {
+      hidden: { opacity: 0, y: 50 },
+      visible: (i: number) => ({
+          opacity: 1,
+          y: 0,
+          transition: {
+              delay: i * 0.2,
+              duration: 0.5,
+              ease: "easeOut"
+          }
+      })
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -85,7 +102,7 @@ export default function HomePage() {
                     Encuentra Ayuda, Ofrece tu Talento. Simple.
                   </h1>
                   <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    SolucionesSimple conecta a personas que necesitan ayuda con tareas y proyectos con aquellos que tienen las habilidades para hacerlo. Publica un trabajo y encuentra la persona adecuada.
+                    SolucionSimple conecta a personas que necesitan ayuda con tareas y proyectos con aquellos que tienen las habilidades para hacerlo. Publica un trabajo y encuentra la persona adecuada.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -102,13 +119,19 @@ export default function HomePage() {
                 width="600"
                 height="400"
                 alt="Ilustración de personas trabajando juntas"
-                className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square"
+                data-ai-hint="people working together"
+                className="mx-auto aspect-video overflow-hidden rounded-xl object-contain sm:w-full lg:order-last lg:aspect-square"
               />
             </div>
           </div>
         </section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+        <motion.section 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={sectionVariants}
+          className="w-full py-12 md:py-24 lg:py-32 bg-muted">
           <div className="px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
@@ -121,44 +144,42 @@ export default function HomePage() {
               </div>
             </div>
             <div className="mx-auto grid max-w-5xl items-stretch gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:max-w-none mt-12">
-              <Card className="flex flex-col">
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-full">
-                    <Logo className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>1. Publica un Trabajo</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  Describe lo que necesitas, establece un presupuesto y publica tu trabajo para que la comunidad lo vea.
-                </CardContent>
-              </Card>
-              <Card className="flex flex-col">
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-full">
-                    <Search className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>2. Encuentra gente capacitada</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  Personas con las habilidades adecuadas exploran los trabajos disponibles y se ponen en contacto para ofrecer sus servicios.
-                </CardContent>
-              </Card>
-              <Card className="flex flex-col">
-                <CardHeader className="flex flex-row items-center gap-4">
-                   <div className="bg-primary/10 p-3 rounded-full">
-                    <CheckCircle className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>3. Soluciónalo</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  Eliges a la persona adecuada, se realiza el trabajo y tu problema queda resuelto. Así de simple.
-                </CardContent>
-              </Card>
+               {[
+                  { icon: <Logo className="h-6 w-6 text-primary" />, title: '1. Publica un Trabajo', description: 'Describe lo que necesitas, establece un presupuesto y publica tu trabajo para que la comunidad lo vea.'},
+                  { icon: <Search className="h-6 w-6 text-primary" />, title: '2. Encuentra gente capacitada', description: 'Personas con las habilidades adecuadas exploran los trabajos disponibles y se ponen en contacto para ofrecer sus servicios.' },
+                  { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: '3. Soluciónalo', description: 'Eliges a la persona adecuada, se realiza el trabajo y tu problema queda resuelto. Así de simple.' }
+                ].map((item, i) => (
+                  <motion.div
+                    key={i}
+                    custom={i}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.5 }}
+                    variants={cardVariants}
+                  >
+                    <Card className="flex flex-col h-full">
+                      <CardHeader className="flex flex-row items-center gap-4">
+                        <div className="bg-primary/10 p-3 rounded-full">
+                          {item.icon}
+                        </div>
+                        <CardTitle>{item.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        {item.description}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+              ))}
             </div>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32">
+        <motion.section 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={sectionVariants}
+          className="w-full py-12 md:py-24 lg:py-32">
             <div className="px-4 md:px-6">
                 <div className="flex flex-col items-center justify-center space-y-4 text-center">
                     <div className="space-y-2">
@@ -190,7 +211,7 @@ export default function HomePage() {
                                             <CardHeader className="flex-grow">
                                                 <div className="flex items-center gap-4">
                                                     <Avatar>
-                                                        <AvatarImage src={review.workerPhotoURL} alt={review.workerName}/>
+                                                        <AvatarImage src={review.workerPhotoURL || undefined} alt={review.workerName}/>
                                                         <AvatarFallback>{review.workerName.charAt(0)}</AvatarFallback>
                                                     </Avatar>
                                                     <div>
@@ -223,13 +244,13 @@ export default function HomePage() {
                     )}
                 </div>
             </div>
-        </section>
+        </motion.section>
 
       </main>
       <footer className="flex items-center justify-center py-6 border-t">
         <div className="px-4 md:px-6 flex justify-center">
             <p className="text-sm text-muted-foreground">
-              © 2024 Soluciones Simples. Creado por Julian Soto Todos los derechos reservados.
+              © 2025 SolucionSimple. Todos los derechos reservados.
             </p>
         </div>
       </footer>
