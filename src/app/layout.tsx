@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { PT_Sans } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
-import { AuthProvider } from "@/contexts/auth-context";
+import MainLayout from "@/components/main-layout";
 
 const ptSans = PT_Sans({
   subsets: ["latin"],
@@ -12,7 +11,7 @@ const ptSans = PT_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SolucionSimple",
+  title: "SolucionesSimple",
   description: "Conectando a personas que necesitan soluciones con quienes pueden proporcionarlas.",
 };
 
@@ -24,12 +23,9 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={cn("min-h-screen bg-background font-body antialiased", ptSans.variable)}>
-        <AuthProvider>
-            <div className="container mx-auto">
-              {children}
-            </div>
-            <Toaster />
-        </AuthProvider>
+        <MainLayout>
+          {children}
+        </MainLayout>
       </body>
     </html>
   );

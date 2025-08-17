@@ -72,7 +72,7 @@ export default function LoginPage() {
                     photoURL: user.photoURL,
                     role: 'empleador', // Default role, user can change later in profile
                 });
-                 toast({ title: "¡Cuenta Creada!", description: "Bienvenido a SolucionSimple." });
+                 toast({ title: "¡Cuenta Creada!", description: "Bienvenido a SolucionesSimples." });
             } else {
                 toast({ title: "¡Bienvenido de nuevo!", description: "Has iniciado sesión con éxito." });
             }

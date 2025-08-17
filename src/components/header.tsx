@@ -42,8 +42,8 @@ export default function Header() {
   return (
     <header className="px-4 lg:px-6 h-14 flex items-center bg-card border-b">
       <Link href="/" className="flex items-center justify-center">
-        <Logo className="h-6 w-6 text-primary" />
-        <span className="ml-2 text-lg font-bold">SolucionSimple</span>
+        <Logo className="h-7 w-7 text-primary" />
+        <span className="ml-2 text-lg font-bold">Soluciones Simples</span>
       </Link>
       <nav className="ml-auto hidden md:flex gap-4 sm:gap-6 items-center">
         <Button variant="ghost" asChild>
