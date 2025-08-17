@@ -57,7 +57,7 @@ export default function HomePage() {
                     id: reviewDoc.id,
                     workerId: workerDoc.id,
                     workerName: `${worker.firstName} ${worker.lastName}`,
-                    workerProfession: worker.category || 'Especialista',
+                    workerProfession: worker.category || 'Trabajador',
                     workerPhotoURL: worker.photoURL,
                     rating: review.rating,
                     comment: review.comment,
@@ -229,7 +229,7 @@ export default function HomePage() {
       <footer className="flex items-center justify-center py-6 border-t">
         <div className="px-4 md:px-6 flex justify-center">
             <p className="text-sm text-muted-foreground">
-              © 2024 SolucionSimple. Todos los derechos reservados.
+              © 2024 SolucionSimple. Creado por Julian Soto Todos los derechos reservados.
             </p>
         </div>
       </footer>

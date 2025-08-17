@@ -59,7 +59,7 @@ export default function Header() {
             href="/trabajadores"
             className="text-sm font-medium hover:underline underline-offset-4"
           >
-            Especialistas
+            Trabajadores
           </Link>
         </Button>
         <Button variant="ghost" asChild>
@@ -116,7 +116,7 @@ export default function Header() {
               </Link>
                <Link href="/trabajadores" className="flex items-center gap-3 hover:text-primary">
                 <User className="h-5 w-5" />
-                Especialistas
+                Trabajadores
               </Link>
               <Link href="/trabajos/nuevo" className="hover:text-primary">
                 Crear Trabajo

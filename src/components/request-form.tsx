@@ -190,7 +190,7 @@ export function RequestForm() {
                   <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
                 </FormControl>
                 <FormDescription>
-                  Una imagen ayuda a los especialistas a comprender el problema.
+                  Una imagen ayuda a los Trabajadores a comprender el problema.
                 </FormDescription>
               </FormItem>
               <Button type="submit" disabled={loading} className="w-full">

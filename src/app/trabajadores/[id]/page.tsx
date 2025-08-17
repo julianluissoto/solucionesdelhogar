@@ -138,7 +138,7 @@ export default function WorkerProfilePage() {
     const querySnapshotCheck = await getDocs(qCheck);
 
     if (!querySnapshotCheck.empty) {
-        toast({ variant: "destructive", title: "Ya has dejado un comentario para este especialista." });
+        toast({ variant: "destructive", title: "Ya has dejado un comentario para este trabajador." });
         setHasReviewed(true);
         return;
     }
@@ -199,7 +199,7 @@ export default function WorkerProfilePage() {
             <div className="mb-6 flex justify-between items-center">
                  <Button variant="outline" asChild>
                     <Link href="/trabajadores">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Especialistas
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Trabajadores
                     </Link>
                 </Button>
                 {profileUrl && (
@@ -293,7 +293,7 @@ export default function WorkerProfilePage() {
                                     </Button>
                                 </div>
                             ) : hasReviewed ? (
-                                <p className="text-center p-4 text-sm text-muted-foreground">Ya has dejado un comentario para este especialista. Gracias por tu feedback.</p>
+                                <p className="text-center p-4 text-sm text-muted-foreground">Ya has dejado un comentario para este trabajador. Gracias por tu feedback.</p>
                             ) : (
                                 <form onSubmit={handleReviewSubmit} className="space-y-4">
                                     <div>
@@ -338,7 +338,7 @@ export default function WorkerProfilePage() {
                                 </AccordionItem>
                              </Accordion>
                            ): (
-                            <p className="text-sm text-muted-foreground text-center py-4">Este especialista aún no tiene reseñas. ¡Sé el primero!</p>
+                            <p className="text-sm text-muted-foreground text-center py-4">Este trabajdor aún no tiene reseñas. ¡Sé el primero!</p>
                            )}
                         </CardContent>
                     </Card>

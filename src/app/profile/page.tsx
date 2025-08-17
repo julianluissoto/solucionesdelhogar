@@ -346,7 +346,7 @@ export default function ProfilePage() {
               
               {role === 'trabajador' && (
               <div className="space-y-4 pt-4 border-t">
-                 <h3 className="text-lg font-semibold">Para Especialistas</h3>
+                 <h3 className="text-lg font-semibold">Para Trabajadores</h3>
                   <div className="space-y-2">
                     <Label htmlFor="category">Categoría Principal</Label>
                      <Select value={category} onValueChange={setCategory}>

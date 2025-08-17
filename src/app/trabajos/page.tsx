@@ -1,20 +1,14 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 import Header from "@/components/header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, Loader2, User } from "lucide-react";
+import { PlusCircle, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, Timestamp } from "firebase/firestore";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
-import SpecificShareButton from "@/components/specific-share-button";
+import { collection, onSnapshot, query, orderBy, Timestamp, OrderByDirection } from "firebase/firestore";
+import Link from "next/link";
+import JobCard from "@/components/job-card";
 
 interface Job {
     id: string;
@@ -22,151 +16,130 @@ interface Job {
     publisherName: string;
     publisherPhotoURL?: string;
     budget: number;
-    description: string;
     category: string;
-    location: string;
+    provincia: string;
     createdAt: Timestamp;
 }
 
-export default function JobDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const [jobDetails, setJobDetails] = useState<Job | null>(null);
+const ALL_PROVINCES = "Todas las provincias";
+
+export default function JobsPage() {
+  const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [selectedProvincia, setSelectedProvincia] = useState(ALL_PROVINCES);
+  const [sortOrder, setSortOrder] = useState<OrderByDirection>("desc");
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  const [categories, setCategories] = useState<string[]>(["Todos"]);
+  const [provincias, setProvincias] = useState<string[]>([ALL_PROVINCES]);
   const [loading, setLoading] = useState(true);
-  const [jobUrl, setJobUrl] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-        setJobUrl(window.location.href);
-    }
-  }, []);
+    setLoading(true);
+    const q = query(collection(db, "jobs"), orderBy("createdAt", sortOrder));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const jobsData: Job[] = [];
+        const categorySet = new Set<string>();
+        const provinciaSet = new Set<string>();
 
-  useEffect(() => {
-    if (id) {
-      const fetchJob = async () => {
-        setLoading(true);
-        const docRef = doc(db, "jobs", id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setJobDetails({ id: docSnap.id, ...docSnap.data() } as Job);
-        } else {
-          console.log("No such document!");
-        }
+        querySnapshot.forEach((doc) => {
+            const job = { id: doc.id, ...doc.data() } as Job;
+            jobsData.push(job);
+            if(job.category) {
+              categorySet.add(job.category);
+            }
+            if(job.provincia) {
+              provinciaSet.add(job.provincia);
+            }
+        });
+        setAllJobs(jobsData);
+        setCategories(["Todos", ...Array.from(categorySet).sort()]);
+        setProvincias([ALL_PROVINCES, ...Array.from(provinciaSet).sort()]);
         setLoading(false);
-      };
-      fetchJob();
+    }, (error) => {
+        console.error("Error fetching jobs: ", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [sortOrder]);
+
+  useEffect(() => {
+    let jobs = allJobs;
+    if (selectedCategory !== "Todos") {
+        jobs = jobs.filter(job => job.category === selectedCategory);
     }
-  }, [id]);
-
-  const formatDate = (timestamp: Timestamp | undefined) => {
-    if (!timestamp) return '';
-    return formatDistanceToNow(timestamp.toDate(), { addSuffix: true, locale: es });
-  };
-
-  if (loading) {
-    return (
-        <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow flex items-center justify-center">
-                <div className="flex items-center gap-2">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <p>Cargando detalles del trabajo...</p>
-                </div>
-            </main>
-        </div>
-    );
-  }
-
-  if (!jobDetails) {
-     return (
-        <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow flex items-center justify-center">
-                <p>No se pudo encontrar el trabajo.</p>
-            </main>
-        </div>
-    );
-  }
-
-  const whatsappLink = `https://wa.me/?text=${encodeURIComponent(`Hola, estoy interesado en el trabajo '${jobDetails.title}' que publicaste en SolucionSimple. ${jobUrl}`)}`;
+    if (selectedProvincia !== ALL_PROVINCES) {
+        jobs = jobs.filter(job => job.provincia === selectedProvincia);
+    }
+    setFilteredJobs(jobs);
+  }, [selectedCategory, selectedProvincia, allJobs]);
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow p-4 md:p-8">
         <div className="container mx-auto">
-            <div className="mb-6 flex justify-between items-center">
-                <Button variant="outline" asChild>
-                    <Link href="/trabajos">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Trabajos
-                    </Link>
-                </Button>
-                {jobUrl && (
-                    <SpecificShareButton 
-                        title={`Oferta de Trabajo: ${jobDetails.title}`}
-                        text={`Mira esta oportunidad de trabajo en SolucionSimple: ${jobDetails.title}`}
-                        url={jobUrl}
-                        buttonVariant="outline"
-                    />
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold font-headline">Trabajos Disponibles</h1>
+            <Button asChild>
+                <Link href="/trabajos/nuevo"><PlusCircle className="mr-2 h-4 w-4" /> Publicar un Trabajo</Link>
+            </Button>
+          </div>
+          
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                      <SelectValue placeholder="Filtrar por categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {categories.map(category => (
+                          <SelectItem key={category} value={category}>
+                              {category}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+               <Select value={selectedProvincia} onValueChange={setSelectedProvincia}>
+                  <SelectTrigger>
+                      <SelectValue placeholder="Filtrar por provincia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {provincias.map(prov => (
+                          <SelectItem key={prov} value={prov}>
+                              {prov}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+              <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as OrderByDirection)}>
+                  <SelectTrigger>
+                      <SelectValue placeholder="Ordenar por fecha" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="desc">Más recientes</SelectItem>
+                      <SelectItem value="asc">Más antiguos</SelectItem>
+                  </SelectContent>
+              </Select>
+          </div>
+
+          {loading ? (
+             <div className="flex items-center justify-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <p>Cargando trabajos...</p>
+              </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredJobs.length > 0 ? (
+                    filteredJobs.map(job => (
+                      <JobCard key={job.id} job={job} />
+                    ))
+                ) : (
+                    <div className="col-span-full text-center py-10">
+                        <p className="text-muted-foreground">No hay trabajos disponibles que coincidan con tu búsqueda.</p>
+                    </div>
                 )}
             </div>
-            <div className="grid md:grid-cols-3 gap-8">
-                <div className="md:col-span-2">
-                    <Card>
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <CardTitle className="text-3xl font-headline">{jobDetails.title}</CardTitle>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src={jobDetails.publisherPhotoURL} />
-                                            <AvatarFallback>
-                                                <User className="h-5 w-5 text-muted-foreground"/>
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <CardDescription>
-                                            Publicado por: {jobDetails.publisherName} en {jobDetails.location}
-                                            <span className="block text-xs text-muted-foreground/80 mt-1">
-                                                {formatDate(jobDetails.createdAt)}
-                                            </span>
-                                        </CardDescription>
-                                    </div>
-                                </div>
-                                <Badge variant="default">{jobDetails.category}</Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold mb-2">Descripción</h3>
-                                <p className="text-muted-foreground">{jobDetails.description}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Presupuesto</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-3xl font-bold text-primary">${jobDetails.budget.toLocaleString()}</p>
-                            <p className="text-sm text-muted-foreground">Presupuesto máximo (ARS)</p>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Contactar al Anunciante</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Button asChild className="w-full">
-                                <Link href={whatsappLink} target="_blank" rel="noopener noreferrer">
-                                    <MessageSquare className="mr-2 h-4 w-4" /> Enviar Mensaje
-                                </Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+          )}
         </div>
       </main>
     </div>
