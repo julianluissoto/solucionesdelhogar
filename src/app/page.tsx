@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Search, CheckCircle } from "lucide-react";
+import { Search, CheckCircle, FilePlus2, Briefcase, ShieldCheck, Heart } from "lucide-react";
 import Header from "@/components/header";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
@@ -37,7 +37,9 @@ export default function HomePage() {
     const fetchFeaturedReviews = async () => {
         setLoading(true);
         const workersRef = collection(db, "users");
-        
+        // We get workers who have reviews. A simple way is to get workers and then their reviews.
+        // A more scalable way would be to have a "hasReviews" flag on the worker.
+        // For now, let's get some workers and then get their best review.
         const qWorkers = query(workersRef, where("role", "==", "trabajador"), limit(10));
         const workerSnap = await getDocs(qWorkers);
         
@@ -57,7 +59,7 @@ export default function HomePage() {
                     workerId: workerDoc.id,
                     workerName: `${worker.firstName} ${worker.lastName}`,
                     workerProfession: worker.category || 'Trabajador',
-                    workerPhotoURL: review.workerPhotoURL || undefined,
+                    workerPhotoURL: review.workerPhotoURL,
                     rating: review.rating,
                     comment: review.comment,
                 });
@@ -88,6 +90,12 @@ export default function HomePage() {
           }
       })
   };
+
+  const stats = [
+    { icon: <Briefcase className="h-8 w-8 text-primary" />, value: '1,200+', label: 'Trabajos Publicados' },
+    { icon: <ShieldCheck className="h-8 w-8 text-primary" />, value: '850+', label: 'Trabajadores Verificados' },
+    { icon: <Heart className="h-8 w-8 text-primary" />, value: '98%', label: 'Clientes Satisfechos' }
+  ];
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -145,7 +153,7 @@ export default function HomePage() {
             </div>
             <div className="mx-auto grid max-w-5xl items-stretch gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:max-w-none mt-12">
                {[
-                  { icon: <Logo className="h-6 w-6 text-primary" />, title: '1. Publica un Trabajo', description: 'Describe lo que necesitas, establece un presupuesto y publica tu trabajo para que la comunidad lo vea.'},
+                  { icon: <FilePlus2 className="h-6 w-6 text-primary" />, title: '1. Publica un Trabajo', description: 'Describe lo que necesitas, establece un presupuesto y publica tu trabajo para que la comunidad lo vea.'},
                   { icon: <Search className="h-6 w-6 text-primary" />, title: '2. Encuentra gente capacitada', description: 'Personas con las habilidades adecuadas exploran los trabajos disponibles y se ponen en contacto para ofrecer sus servicios.' },
                   { icon: <CheckCircle className="h-6 w-6 text-primary" />, title: '3. Soluciónalo', description: 'Eliges a la persona adecuada, se realiza el trabajo y tu problema queda resuelto. Así de simple.' }
                 ].map((item, i) => (
@@ -171,6 +179,33 @@ export default function HomePage() {
                   </motion.div>
               ))}
             </div>
+          </div>
+        </motion.section>
+
+        <motion.section 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={sectionVariants}
+          className="w-full py-12 md:py-24 lg:py-32 bg-primary/5">
+          <div className="container px-4 md:px-6">
+             <div className="mx-auto grid max-w-5xl items-center gap-6 lg:grid-cols-3 lg:gap-12">
+               {stats.map((stat, i) => (
+                  <motion.div
+                    key={i}
+                    custom={i}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.5 }}
+                    variants={cardVariants}
+                    className="flex flex-col items-center justify-center space-y-2 text-center"
+                  >
+                    {stat.icon}
+                    <div className="text-4xl font-bold">{stat.value}</div>
+                    <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                  </motion.div>
+                ))}
+             </div>
           </div>
         </motion.section>
 
@@ -225,6 +260,7 @@ export default function HomePage() {
                                             </CardHeader>
                                             <CardContent className="flex-grow">
                                                 <p className="text-sm text-muted-foreground italic">&quot;{review.comment}&quot;</p>
+
                                             </CardContent>
                                             <CardFooter>
                                                 <Button variant="outline" size="sm" asChild>
@@ -250,7 +286,7 @@ export default function HomePage() {
       <footer className="flex items-center justify-center py-6 border-t">
         <div className="px-4 md:px-6 flex justify-center">
             <p className="text-sm text-muted-foreground">
-              © 2025 SolucionSimple. Todos los derechos reservados.
+              © 2024 SolucionSimple. Todos los derechos reservados.
             </p>
         </div>
       </footer>

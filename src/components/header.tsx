@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import Link from "next/link";
-import { Menu, LogOut, UserCircle, Briefcase, User } from "lucide-react";
+import { Menu, LogOut, UserCircle, Briefcase, User, FolderKanban } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "./ui/sheet";
 import ShareButton from "./share-button";
@@ -19,18 +20,24 @@ export default function Header() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [photoURL, setPhotoURL] = useState("");
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserPhoto = async () => {
+    const fetchUserData = async () => {
       if (user) {
         const docRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setPhotoURL(docSnap.data().photoURL || "");
+          const data = docSnap.data();
+          setPhotoURL(data.photoURL || "");
+          setUserRole(data.role || null);
         }
+      } else {
+        setPhotoURL("");
+        setUserRole(null);
       }
     };
-    fetchUserPhoto();
+    fetchUserData();
   }, [user]);
 
 
@@ -42,8 +49,8 @@ export default function Header() {
   return (
     <header className="px-4 lg:px-6 h-14 flex items-center bg-card border-b">
       <Link href="/" className="flex items-center justify-center">
-        <Logo className="h-7 w-7 text-primary" />
-        <span className="ml-2 text-lg font-bold">Soluciones Simples</span>
+        <Logo className="h-6 w-6 text-primary" />
+        <span className="ml-2 text-lg font-bold">SolucionSimple</span>
       </Link>
       <nav className="ml-auto hidden md:flex gap-4 sm:gap-6 items-center">
         <Button variant="ghost" asChild>
@@ -62,23 +69,21 @@ export default function Header() {
             Trabajadores
           </Link>
         </Button>
-        <Button variant="ghost" asChild>
-          <Link
-            href="/trabajos/nuevo"
-            className="text-sm font-medium hover:underline underline-offset-4"
-          >
-            Crear Trabajo
-          </Link>
-        </Button>
         <ShareButton />
         {loading ? (
           <div className="w-24 h-8 bg-muted rounded-md animate-pulse" />
         ) : user ? (
           <>
             <Button variant="ghost" asChild>
+              <Link href="/mis-trabajos" className="text-sm font-medium flex items-center gap-2">
+                <FolderKanban className="h-4 w-4"/>
+                Mis Trabajos
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild>
               <Link href="/profile" className="text-sm font-medium flex items-center gap-2">
                  <Avatar className="h-7 w-7">
-                    <AvatarImage src={photoURL} />
+                    <AvatarImage src={photoURL || undefined} />
                     <AvatarFallback><UserCircle className="h-full w-full"/></AvatarFallback>
                 </Avatar>
                 Mi Perfil
@@ -89,11 +94,18 @@ export default function Header() {
             </Button>
           </>
         ) : (
-          <Button variant="outline" asChild>
-            <Link href="/login" className="text-sm font-medium">
-              Iniciar Sesión / Registrarse
-            </Link>
-          </Button>
+          <>
+            <Button variant="ghost" asChild>
+                <Link href="/trabajos/nuevo" className="text-sm font-medium hover:underline underline-offset-4">
+                    Crear Trabajo
+                </Link>
+            </Button>
+            <Button variant="outline" asChild>
+                <Link href="/login" className="text-sm font-medium">
+                Iniciar Sesión / Registrarse
+                </Link>
+            </Button>
+          </>
         )}
       </nav>
       <div className="ml-auto md:hidden">
@@ -118,9 +130,6 @@ export default function Header() {
                 <User className="h-5 w-5" />
                 Trabajadores
               </Link>
-              <Link href="/trabajos/nuevo" className="hover:text-primary">
-                Crear Trabajo
-              </Link>
               <div className="flex">
                 <ShareButton />
               </div>
@@ -128,9 +137,13 @@ export default function Header() {
                   <div className="w-full h-8 bg-muted rounded-md animate-pulse" />
                 ) : user ? (
                   <>
+                     <Link href="/mis-trabajos" className="flex items-center gap-3 hover:text-primary">
+                       <FolderKanban className="h-5 w-5" />
+                        Mis Trabajos
+                    </Link>
                      <Link href="/profile" className="flex items-center gap-3 hover:text-primary">
                         <Avatar className="h-8 w-8">
-                            <AvatarImage src={photoURL} />
+                            <AvatarImage src={photoURL || undefined} />
                             <AvatarFallback><UserCircle className="h-full w-full"/></AvatarFallback>
                         </Avatar>
                         Mi Perfil
@@ -140,9 +153,14 @@ export default function Header() {
                     </Button>
                   </>
                 ) : (
-                  <Link href="/login" className="hover:text-primary">
-                    Iniciar Sesión / Registrarse
-                  </Link>
+                  <>
+                     <Link href="/trabajos/nuevo" className="hover:text-primary">
+                        Crear Trabajo
+                     </Link>
+                     <Link href="/login" className="hover:text-primary">
+                        Iniciar Sesión / Registrarse
+                     </Link>
+                  </>
                )}
             </nav>
           </SheetContent>

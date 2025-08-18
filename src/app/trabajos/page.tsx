@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,6 +10,8 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, Timestamp, OrderByDirection } from "firebase/firestore";
 import Link from "next/link";
 import JobCard from "@/components/job-card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import CategoryChart from "@/components/category-chart";
 
 interface Job {
     id: string;
@@ -21,6 +24,11 @@ interface Job {
     createdAt: Timestamp;
 }
 
+interface CategoryData {
+  name: string;
+  total: number;
+}
+
 const ALL_PROVINCES = "Todas las provincias";
 
 export default function JobsPage() {
@@ -31,6 +39,7 @@ export default function JobsPage() {
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [categories, setCategories] = useState<string[]>(["Todos"]);
   const [provincias, setProvincias] = useState<string[]>([ALL_PROVINCES]);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,12 +49,15 @@ export default function JobsPage() {
         const jobsData: Job[] = [];
         const categorySet = new Set<string>();
         const provinciaSet = new Set<string>();
+        const categoryCounts: { [key: string]: number } = {};
+
 
         querySnapshot.forEach((doc) => {
             const job = { id: doc.id, ...doc.data() } as Job;
             jobsData.push(job);
             if(job.category) {
               categorySet.add(job.category);
+              categoryCounts[job.category] = (categoryCounts[job.category] || 0) + 1;
             }
             if(job.provincia) {
               provinciaSet.add(job.provincia);
@@ -54,6 +66,13 @@ export default function JobsPage() {
         setAllJobs(jobsData);
         setCategories(["Todos", ...Array.from(categorySet).sort()]);
         setProvincias([ALL_PROVINCES, ...Array.from(provinciaSet).sort()]);
+
+        const chartData = Object.entries(categoryCounts)
+            .map(([name, total]) => ({ name, total }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10); // Get top 10
+        setCategoryData(chartData);
+
         setLoading(false);
     }, (error) => {
         console.error("Error fetching jobs: ", error);
@@ -86,7 +105,7 @@ export default function JobsPage() {
             </Button>
           </div>
           
-          <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+          <div className="mb-8 mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                   <SelectTrigger>
                       <SelectValue placeholder="Filtrar por categoría" />
@@ -128,17 +147,32 @@ export default function JobsPage() {
                 <p>Cargando trabajos...</p>
               </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredJobs.length > 0 ? (
-                    filteredJobs.map(job => (
-                      <JobCard key={job.id} job={job} />
-                    ))
-                ) : (
-                    <div className="col-span-full text-center py-10">
-                        <p className="text-muted-foreground">No hay trabajos disponibles que coincidan con tu búsqueda.</p>
-                    </div>
-                )}
-            </div>
+            <>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredJobs.length > 0 ? (
+                      filteredJobs.map(job => (
+                        <JobCard key={job.id} job={job} />
+                      ))
+                  ) : (
+                      <div className="col-span-full text-center py-10">
+                          <p className="text-muted-foreground">No hay trabajos disponibles que coincidan con tu búsqueda.</p>
+                      </div>
+                  )}
+              </div>
+              {categoryData.length > 0 && (
+                <div className="mt-12 max-w-4xl mx-auto">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Categorías más Populares</CardTitle>
+                      <CardDescription>Top 10 categorías con más trabajos publicados.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <CategoryChart data={categoryData} />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
