@@ -252,7 +252,7 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-12">
+            <div className="mx-auto grid grid-cols-2 max-w-5xl items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-12">
               {loadingCategories ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <motion.div key={i} custom={i} variants={cardVariants} initial="hidden" animate="visible">
